@@ -15,8 +15,6 @@ export const authApi = {
         ? {
             headers: {
               Authorization: `Bearer ${token}`,
-              "x-access-token": token,
-              token,
             },
           }
         : undefined,

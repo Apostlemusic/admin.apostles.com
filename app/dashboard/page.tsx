@@ -71,6 +71,7 @@ export default function DashboardPage() {
 
   const topCategories = useMemo(() => stats?.topCategories || [], [stats])
   const topGenres = useMemo(() => stats?.topGenres || [], [stats])
+  const topCategoriesChart = useMemo(() => topCategories.slice(0, 6), [topCategories])
 
   if (loading)
     return (
@@ -171,13 +172,16 @@ export default function DashboardPage() {
           <StatsGrid stats={stats.totals} />
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
-            <Card className="col-span-4 border-none shadow-md">
-              <CardHeader>
-                <CardTitle>Top Genres</CardTitle>
+            <Card className="col-span-4 border-none bg-card/80 shadow-md ring-1 ring-border/40">
+              <CardHeader className="border-b border-border/40 bg-muted/40">
+                <div className="space-y-1">
+                  <CardTitle>Top Genres</CardTitle>
+                  <p className="text-xs text-muted-foreground">Most played genres this period</p>
+                </div>
               </CardHeader>
-              <CardContent className="pl-2">
+              <CardContent className="pl-2 pt-4">
                 <ChartContainer config={{ count: { label: "Plays", color: "var(--primary)" } }}>
-                  <ResponsiveContainer width="100%" height={350}>
+                  <ResponsiveContainer width="100%" height={320}>
                     <BarChart data={topGenres}>
                       <XAxis dataKey="slug" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                       <YAxis
@@ -195,29 +199,45 @@ export default function DashboardPage() {
               </CardContent>
             </Card>
 
-            <Card className="col-span-3 border-none shadow-md">
-              <CardHeader>
-                <CardTitle>Top Categories</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {topCategories.length === 0 ? (
-                    <div className="text-sm text-muted-foreground italic text-center py-10">
-                      No category insights yet. Upload more content to see trends.
-                    </div>
-                  ) : (
-                    topCategories.slice(0, 6).map((item: any) => (
-                      <div key={item.slug} className="flex items-center justify-between text-sm">
-                        <span className="capitalize text-muted-foreground">{item.slug}</span>
-                        <span className="font-semibold text-foreground">{item.count}</span>
-                      </div>
-                    ))
-                  )}
+            <Card className="col-span-full md:col-span-3 border-none bg-card/80 shadow-md ring-1 ring-border/40">
+              <CardHeader className="border-b border-border/40 bg-muted/40">
+                <div className="space-y-1">
+                  <CardTitle>Top Categories</CardTitle>
+                  <p className="text-xs text-muted-foreground">Categories leading song volume</p>
                 </div>
+              </CardHeader>
+              <CardContent className="px-4 pt-4">
+                {topCategoriesChart.length === 0 ? (
+                  <div className="text-sm text-muted-foreground italic text-center py-8 sm:py-10">
+                    No category insights yet. Upload more content to see trends.
+                  </div>
+                ) : (
+                  <ChartContainer config={{ count: { label: "Songs", color: "var(--primary)" } }}>
+                    <ResponsiveContainer width="100%" height={260}>
+                      <BarChart data={topCategoriesChart} layout="vertical" margin={{ left: 8, right: 8, top: 4 }}>
+                        <XAxis type="number" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
+                        <YAxis
+                          dataKey="slug"
+                          type="category"
+                          width={90}
+                          stroke="#888888"
+                          fontSize={12}
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(value) =>
+                            typeof value === "string" && value.length > 12 ? `${value.slice(0, 12)}…` : value
+                          }
+                        />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <Bar dataKey="count" fill="var(--color-primary)" radius={[4, 4, 0, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ChartContainer>
+                )}
               </CardContent>
             </Card>
           </div>
-
+{/* 
           <Card className="border-none shadow-md">
             <CardHeader>
               <CardTitle>Recent admin activity</CardTitle>
@@ -245,7 +265,7 @@ export default function DashboardPage() {
                 <Badge variant="secondary">Insight</Badge>
               </div>
             </CardContent>
-          </Card>
+          </Card> */}
         </>
       )}
     </div>
