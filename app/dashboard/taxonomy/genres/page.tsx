@@ -15,11 +15,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useAuth } from "@/hooks/use-auth"
+import { useRouter } from "next/navigation"
 
 const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
 const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 
 export default function GenresPage() {
+  const router = useRouter()
+  const { isAuthenticated, accessToken } = useAuth()
   const [genres, setGenres] = React.useState<any[]>([])
   const [loading, setLoading] = React.useState(true)
   const [newGenre, setNewGenre] = React.useState({ name: "" })
@@ -31,6 +35,11 @@ export default function GenresPage() {
   const [editValues, setEditValues] = React.useState({ name: "", slug: "", imageUrl: "" })
   const [editImage, setEditImage] = React.useState<File | null>(null)
   const [editImagePreview, setEditImagePreview] = React.useState<string | null>(null)
+  const token =
+    accessToken ||
+    (typeof window !== "undefined"
+      ? localStorage.getItem("apostle_admin_access_token") || localStorage.getItem("apostle_admin_token")
+      : null)
 
   const uploadImage = React.useCallback(async (file: File) => {
     if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
@@ -46,7 +55,9 @@ export default function GenresPage() {
     })
 
     if (!response.ok) {
-      throw new Error("Image upload failed")
+      const errorData = await response.json().catch(() => null)
+      const message = errorData?.error?.message || errorData?.message || "Image upload failed"
+      throw new Error(message)
     }
 
     const data = await response.json()
@@ -55,6 +66,12 @@ export default function GenresPage() {
 
   const fetchGenres = React.useCallback(async () => {
     try {
+      if (!token) {
+        toast.error("Missing access token. Please log in again.")
+        setLoading(false)
+        router.replace("/login")
+        return
+      }
       const response = await genresApi.getAll()
       const data = response?.data ?? response
 
@@ -70,19 +87,36 @@ export default function GenresPage() {
         setGenres([])
       }
     } catch (err) {
-      toast.error("Failed to load genres")
+      const status = (err as any)?.response?.status
+      if (status === 401) {
+        toast.error("Session expired. Please log in again.")
+        router.replace("/login")
+      } else {
+        const message = (err as any)?.response?.data?.message || (err as Error)?.message || "Failed to load genres"
+        toast.error(message)
+      }
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [router, token])
 
   React.useEffect(() => {
+    if (!isAuthenticated) {
+      setLoading(false)
+      router.replace("/login")
+      return
+    }
     fetchGenres()
-  }, [fetchGenres])
+  }, [fetchGenres, isAuthenticated, router])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      if (!token) {
+        toast.error("Missing access token. Please log in again.")
+        router.replace("/login")
+        return
+      }
       setUploading(true)
       let imageUrl = ""
       if (newImage) {
@@ -96,7 +130,14 @@ export default function GenresPage() {
       setCreateOpen(false)
       fetchGenres()
     } catch (err) {
-      toast.error("Failed to create genre")
+      const status = (err as any)?.response?.status
+      if (status === 401) {
+        toast.error("Session expired. Please log in again.")
+        router.replace("/login")
+      } else {
+        const message = (err as any)?.response?.data?.message || (err as Error)?.message || "Failed to create genre"
+        toast.error(message)
+      }
     } finally {
       setUploading(false)
     }
@@ -105,11 +146,23 @@ export default function GenresPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this genre?")) return
     try {
+      if (!token) {
+        toast.error("Missing access token. Please log in again.")
+        router.replace("/login")
+        return
+      }
       await genresApi.delete({ id })
       toast.success("Genre deleted")
       fetchGenres()
     } catch (err) {
-      toast.error("Delete failed")
+      const status = (err as any)?.response?.status
+      if (status === 401) {
+        toast.error("Session expired. Please log in again.")
+        router.replace("/login")
+      } else {
+        const message = (err as any)?.response?.data?.message || (err as Error)?.message || "Delete failed"
+        toast.error(message)
+      }
     }
   }
 
@@ -124,6 +177,11 @@ export default function GenresPage() {
     e.preventDefault()
     if (!editing) return
     try {
+      if (!token) {
+        toast.error("Missing access token. Please log in again.")
+        router.replace("/login")
+        return
+      }
       setUploading(true)
       let imageUrl = editValues.imageUrl
       if (editImage) {
@@ -138,7 +196,14 @@ export default function GenresPage() {
       setEditing(null)
       fetchGenres()
     } catch (err) {
-      toast.error("Update failed")
+      const status = (err as any)?.response?.status
+      if (status === 401) {
+        toast.error("Session expired. Please log in again.")
+        router.replace("/login")
+      } else {
+        const message = (err as any)?.response?.data?.message || (err as Error)?.message || "Update failed"
+        toast.error(message)
+      }
     } finally {
       setUploading(false)
     }

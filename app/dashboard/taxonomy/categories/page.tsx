@@ -15,11 +15,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { useAuth } from "@/hooks/use-auth"
+import { useRouter } from "next/navigation"
 
 const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
 const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
 
 export default function CategoriesPage() {
+  const router = useRouter()
+  const { isAuthenticated, accessToken } = useAuth()
   const [categories, setCategories] = React.useState<any[]>([])
   const [loading, setLoading] = React.useState(true)
   const [newCat, setNewCat] = React.useState({ name: "" })
@@ -31,6 +35,11 @@ export default function CategoriesPage() {
   const [editValues, setEditValues] = React.useState({ name: "", slug: "", imageUrl: "" })
   const [editImage, setEditImage] = React.useState<File | null>(null)
   const [editImagePreview, setEditImagePreview] = React.useState<string | null>(null)
+  const token =
+    accessToken ||
+    (typeof window !== "undefined"
+      ? localStorage.getItem("apostle_admin_access_token") || localStorage.getItem("apostle_admin_token")
+      : null)
 
   const uploadImage = React.useCallback(async (file: File) => {
     if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
@@ -46,7 +55,9 @@ export default function CategoriesPage() {
     })
 
     if (!response.ok) {
-      throw new Error("Image upload failed")
+      const errorData = await response.json().catch(() => null)
+      const message = errorData?.error?.message || errorData?.message || "Image upload failed"
+      throw new Error(message)
     }
 
     const data = await response.json()
@@ -55,6 +66,12 @@ export default function CategoriesPage() {
 
   const fetchCategories = React.useCallback(async () => {
     try {
+      if (!token) {
+        toast.error("Missing access token. Please log in again.")
+        setLoading(false)
+        router.replace("/login")
+        return
+      }
       const response = await categoriesApi.getAll()
       const data = response?.data ?? response
 
@@ -70,19 +87,36 @@ export default function CategoriesPage() {
         setCategories([])
       }
     } catch (err) {
-      toast.error("Failed to load categories")
+      const status = (err as any)?.response?.status
+      if (status === 401) {
+        toast.error("Session expired. Please log in again.")
+        router.replace("/login")
+      } else {
+        const message = (err as any)?.response?.data?.message || (err as Error)?.message || "Failed to load categories"
+        toast.error(message)
+      }
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [router, token])
 
   React.useEffect(() => {
+    if (!isAuthenticated) {
+      setLoading(false)
+      router.replace("/login")
+      return
+    }
     fetchCategories()
-  }, [fetchCategories])
+  }, [fetchCategories, isAuthenticated, router])
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
+      if (!token) {
+        toast.error("Missing access token. Please log in again.")
+        router.replace("/login")
+        return
+      }
       setUploading(true)
       let imageUrl = ""
       if (newImage) {
@@ -96,7 +130,14 @@ export default function CategoriesPage() {
       setCreateOpen(false)
       fetchCategories()
     } catch (err) {
-      toast.error("Failed to create category")
+      const status = (err as any)?.response?.status
+      if (status === 401) {
+        toast.error("Session expired. Please log in again.")
+        router.replace("/login")
+      } else {
+        const message = (err as any)?.response?.data?.message || (err as Error)?.message || "Failed to create category"
+        toast.error(message)
+      }
     } finally {
       setUploading(false)
     }
@@ -105,11 +146,23 @@ export default function CategoriesPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this category?")) return
     try {
+      if (!token) {
+        toast.error("Missing access token. Please log in again.")
+        router.replace("/login")
+        return
+      }
       await categoriesApi.delete({ id })
       toast.success("Category deleted")
       fetchCategories()
     } catch (err) {
-      toast.error("Delete failed")
+      const status = (err as any)?.response?.status
+      if (status === 401) {
+        toast.error("Session expired. Please log in again.")
+        router.replace("/login")
+      } else {
+        const message = (err as any)?.response?.data?.message || (err as Error)?.message || "Delete failed"
+        toast.error(message)
+      }
     }
   }
 
@@ -124,6 +177,11 @@ export default function CategoriesPage() {
     e.preventDefault()
     if (!editing) return
     try {
+      if (!token) {
+        toast.error("Missing access token. Please log in again.")
+        router.replace("/login")
+        return
+      }
       setUploading(true)
       let imageUrl = editValues.imageUrl
       if (editImage) {
@@ -138,7 +196,14 @@ export default function CategoriesPage() {
       setEditing(null)
       fetchCategories()
     } catch (err) {
-      toast.error("Update failed")
+      const status = (err as any)?.response?.status
+      if (status === 401) {
+        toast.error("Session expired. Please log in again.")
+        router.replace("/login")
+      } else {
+        const message = (err as any)?.response?.data?.message || (err as Error)?.message || "Update failed"
+        toast.error(message)
+      }
     } finally {
       setUploading(false)
     }
