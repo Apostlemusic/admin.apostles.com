@@ -1,7 +1,7 @@
 "use client"
 
 import type * as React from "react"
-import { Command, LayoutDashboard, Music, Settings2, Tags, Users } from "lucide-react"
+import { LayoutDashboard, Music, Settings2, Tags, Users } from "lucide-react"
 
 import {
   Sidebar,
@@ -26,20 +26,20 @@ const data = {
       url: "/dashboard",
       icon: LayoutDashboard,
     },
-    {
-      title: "Content",
-      url: "/dashboard/content",
-      icon: Music,
-      items: [
-        {
-          title: "Songs",
-          url: "/dashboard/content/songs",
-        },
-      ],
-    },
+    // {
+    //   title: "Content",
+    //   url: "/dashboard/content",
+    //   icon: Music,
+    //   items: [
+    //     {
+    //       title: "Songs",
+    //       url: "/dashboard/content/songs",
+    //     },
+    //   ],
+    // },
     {
       title: "Taxonomy",
-      url: "/dashboard/taxonomy",
+      url: "#",
       icon: Tags,
       items: [
         {
@@ -72,11 +72,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <Link href="/dashboard">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <Command className="size-4" />
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg border bg-background">
+                  <img src="/Apostle-Logo-sm.png" alt="Apostles" className="h-6 w-6" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-semibold">Apostle</span>
+                  <span className="truncate font-semibold">Apostles</span>
                   <span className="truncate text-xs">Admin Console</span>
                 </div>
               </Link>

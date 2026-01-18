@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
 import { Spinner } from "@/components/ui/spinner"
 import Link from "next/link"
+import { toast } from "sonner"
 
 export default function LoginPage() {
   const router = useRouter()
@@ -27,20 +28,20 @@ export default function LoginPage() {
     clearError()
 
     try {
-      const response = await login({ email, password })
-      console.log(response)
+      await login({ email, password })
+      toast.success("Welcome back! Your dashboard is ready.")
       router.push("/dashboard")
     } catch (err) {
-      // Error is handled by the store
+      toast.error((err as any)?.response?.data?.message || "Login failed")
     }
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/10 p-4">
+    <div className="min-h-screen flex items-center justify-center bg-linear-to-br from-primary/5 via-background to-accent/10 p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="space-y-2 text-center">
-          <CardTitle className="text-3xl font-bold bg-gradient-to-br from-primary to-primary/60 bg-clip-text text-transparent">
-            Apostle
+          <CardTitle className="text-3xl font-bold bg-linear-to-br from-primary to-primary/60 bg-clip-text text-transparent">
+            Apostles
           </CardTitle>
           <CardDescription>Sign in to your admin account</CardDescription>
         </CardHeader>

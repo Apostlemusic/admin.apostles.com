@@ -46,12 +46,36 @@ export const useAuth = create<AuthState>()(
         set({ isLoading: true, error: null })
         try {
           const res = await authApi.login(data)
-          if (res.data?.success) {
-            set({
-              admin: res.data.admin,
-              isAuthenticated: true,
-              isLoading: false,
-            })
+          if (!res.data?.success) {
+            set({ error: res.data?.message || "Login failed", isLoading: false })
+            return
+          }
+
+          const accessToken = res.data?.accessToken
+          const refreshToken = res.data?.refreshToken
+
+          if (typeof window !== "undefined") {
+            if (accessToken) localStorage.setItem("apostle_admin_access_token", accessToken)
+            if (refreshToken) localStorage.setItem("apostle_admin_refresh_token", refreshToken)
+          }
+
+          let admin = res.data?.admin
+
+          if (!admin) {
+            const profileRes = await authApi.getMe()
+            admin = profileRes.data?.admin
+          }
+
+          if (admin) {
+            const normalized = {
+              id: admin.id || admin._id,
+              email: admin.email,
+              name: admin.name || admin.fullName || "Admin",
+              phoneNumber: admin.phoneNumber || "",
+            }
+            set({ admin: normalized, isAuthenticated: true, isLoading: false })
+          } else {
+            set({ isAuthenticated: true, isLoading: false })
           }
         } catch (error: any) {
           set({
@@ -72,6 +96,12 @@ export const useAuth = create<AuthState>()(
               isAuthenticated: true,
               isLoading: false,
             })
+            const accessToken = res.data?.accessToken
+            const refreshToken = res.data?.refreshToken
+            if (typeof window !== "undefined") {
+              if (accessToken) localStorage.setItem("apostle_admin_access_token", accessToken)
+              if (refreshToken) localStorage.setItem("apostle_admin_refresh_token", refreshToken)
+            }
           }
         } catch (error: any) {
           set({
@@ -85,7 +115,12 @@ export const useAuth = create<AuthState>()(
       logout: async () => {
         set({ isLoading: true })
         try {
-          await (authApi as any).logout()
+          await authApi.logout()
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("apostle_admin_access_token")
+            localStorage.removeItem("apostle_admin_refresh_token")
+            localStorage.removeItem("apostle_admin_token")
+          }
           set({
             admin: null,
             isAuthenticated: false,

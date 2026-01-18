@@ -11,8 +11,8 @@ export const songsApi = {
 export const categoriesApi = {
   getAll: (params?: any) => api.get("/api/content/categories", { params }),
   create: (data: any) => api.post("/api/content/categories", data),
-  update: (id: string, data: any) => api.put(`/api/content/categories/${id}`, data),
-  delete: (id: string) => api.delete(`/api/content/categories/${id}`),
+  update: (data: any) => api.put("/api/content/categories", data),
+  delete: (data: any) => api.delete("/api/content/categories", { data }),
 }
 
 export const playlistsApi = {
@@ -23,6 +23,6 @@ export const playlistsApi = {
 export const genresApi = {
   getAll: (params?: any) => api.get("/api/content/genres", { params }),
   create: (data: any) => api.post("/api/content/genres", data),
-  update: (id: string, data: any) => api.put(`/api/content/genres/${id}`, data),
-  delete: (id: string) => api.delete(`/api/content/genres/${id}`),
+  update: (data: any) => api.put("/api/content/genres", data),
+  delete: (data: any) => api.delete("/api/content/genres", { data }),
 }

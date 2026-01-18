@@ -16,12 +16,42 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 
+const CLOUDINARY_CLOUD_NAME = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME
+const CLOUDINARY_UPLOAD_PRESET = process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET
+
 export default function GenresPage() {
   const [genres, setGenres] = React.useState<any[]>([])
   const [loading, setLoading] = React.useState(true)
-  const [newGenre, setNewGenre] = React.useState({ name: "", slug: "" })
+  const [newGenre, setNewGenre] = React.useState({ name: "" })
+  const [newImage, setNewImage] = React.useState<File | null>(null)
+  const [newImagePreview, setNewImagePreview] = React.useState<string | null>(null)
+  const [uploading, setUploading] = React.useState(false)
+  const [createOpen, setCreateOpen] = React.useState(false)
   const [editing, setEditing] = React.useState<any | null>(null)
-  const [editValues, setEditValues] = React.useState({ name: "", slug: "" })
+  const [editValues, setEditValues] = React.useState({ name: "", slug: "", imageUrl: "" })
+  const [editImage, setEditImage] = React.useState<File | null>(null)
+  const [editImagePreview, setEditImagePreview] = React.useState<string | null>(null)
+
+  const uploadImage = React.useCallback(async (file: File) => {
+    if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_UPLOAD_PRESET) {
+      throw new Error("Cloudinary configuration missing")
+    }
+    const formData = new FormData()
+    formData.append("file", file)
+    formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET)
+
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
+      method: "POST",
+      body: formData,
+    })
+
+    if (!response.ok) {
+      throw new Error("Image upload failed")
+    }
+
+    const data = await response.json()
+    return data.secure_url as string
+  }, [])
 
   const fetchGenres = React.useCallback(async () => {
     try {
@@ -53,19 +83,29 @@ export default function GenresPage() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault()
     try {
-      await genresApi.create(newGenre)
+      setUploading(true)
+      let imageUrl = ""
+      if (newImage) {
+        imageUrl = await uploadImage(newImage)
+      }
+      await genresApi.create({ name: newGenre.name, imageUrl })
       toast.success("Genre created")
-      setNewGenre({ name: "", slug: "" })
+      setNewGenre({ name: "" })
+      setNewImage(null)
+      setNewImagePreview(null)
+      setCreateOpen(false)
       fetchGenres()
     } catch (err) {
       toast.error("Failed to create genre")
+    } finally {
+      setUploading(false)
     }
   }
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this genre?")) return
     try {
-      await genresApi.delete(id)
+      await genresApi.delete({ id })
       toast.success("Genre deleted")
       fetchGenres()
     } catch (err) {
@@ -75,105 +115,168 @@ export default function GenresPage() {
 
   const startEdit = (genre: any) => {
     setEditing(genre)
-    setEditValues({ name: genre.name ?? "", slug: genre.slug ?? "" })
+    setEditValues({ name: genre.name ?? "", slug: genre.slug ?? "", imageUrl: genre.imageUrl ?? "" })
+    setEditImage(null)
+    setEditImagePreview(genre.imageUrl ?? null)
   }
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!editing) return
-    const id = editing.id || editing._id
     try {
-      await genresApi.update(id, editValues)
+      setUploading(true)
+      let imageUrl = editValues.imageUrl
+      if (editImage) {
+        imageUrl = await uploadImage(editImage)
+      }
+      await genresApi.update({
+        genreSlug: editValues.slug,
+        name: editValues.name,
+        imageUrl,
+      })
       toast.success("Genre updated")
       setEditing(null)
       fetchGenres()
     } catch (err) {
       toast.error("Update failed")
+    } finally {
+      setUploading(false)
     }
   }
 
   return (
     <div className="space-y-6">
-      <h1 className="text-3xl font-bold tracking-tight text-primary">Genres</h1>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-2">
+          <h1 className="text-3xl font-bold tracking-tight">Genres</h1>
+          <p className="text-muted-foreground">Curate a vibrant genre catalog for discovery.</p>
+        </div>
+        <Button onClick={() => setCreateOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" /> New Genre
+        </Button>
+      </div>
 
-      <div className="grid gap-6 md:grid-cols-3">
-        <Card className="md:col-span-1">
-          <CardHeader>
-            <CardTitle>Add New Genre</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleCreate} className="space-y-4">
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Name</label>
-                <Input
-                  value={newGenre.name}
-                  onChange={(e) => setNewGenre({ ...newGenre, name: e.target.value })}
-                  placeholder="e.g. Afro Gospel"
-                  required
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-sm font-medium">Slug</label>
-                <Input
-                  value={newGenre.slug}
-                  onChange={(e) => setNewGenre({ ...newGenre, slug: e.target.value })}
-                  placeholder="e.g. afro-gospel"
-                  required
-                />
-              </div>
-              <Button type="submit" className="w-full">
-                <Plus className="mr-2 h-4 w-4" /> Create
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Existing Genres</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
+      <Card>
+        <CardHeader>
+          <CardTitle>All Genres</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Genre</TableHead>
+                <TableHead>Slug</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {loading ? (
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Slug</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableCell colSpan={3} className="text-center">
+                    Loading...
+                  </TableCell>
                 </TableRow>
-              </TableHeader>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={3} className="text-center">
-                      Loading...
+              ) : genres.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={3} className="text-center text-muted-foreground">
+                    No genres yet. Create your first genre.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                genres.map((genre) => (
+                  <TableRow key={genre.id || genre._id}>
+                    <TableCell className="font-medium">
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 overflow-hidden rounded-lg bg-muted/40">
+                          {genre.imageUrl ? (
+                            <img src={genre.imageUrl} alt={genre.name} className="h-full w-full object-cover" />
+                          ) : (
+                            <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">
+                              N/A
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <div>{genre.name}</div>
+                          {genre.imageUrl && <div className="text-xs text-muted-foreground">Artwork set</div>}
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{genre.slug}</TableCell>
+                    <TableCell className="text-right space-x-2">
+                      <Button variant="ghost" size="icon" onClick={() => startEdit(genre)}>
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-destructive"
+                        onClick={() => handleDelete(genre.id || genre._id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </TableCell>
                   </TableRow>
-                ) : (
-                  genres.map((genre) => (
-                    <TableRow key={genre.id || genre._id}>
-                      <TableCell className="font-medium">{genre.name}</TableCell>
-                      <TableCell>{genre.slug}</TableCell>
-                      <TableCell className="text-right space-x-2">
-                        <Button variant="ghost" size="icon" onClick={() => startEdit(genre)}>
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="text-destructive"
-                          onClick={() => handleDelete(genre.id || genre._id)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      </div>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      <Dialog
+        open={createOpen}
+        onOpenChange={(open) => {
+          setCreateOpen(open)
+          if (!open) {
+            setNewImage(null)
+            setNewImagePreview(null)
+          }
+        }}
+      >
+        <DialogContent>
+          <form onSubmit={handleCreate} className="space-y-4">
+            <DialogHeader>
+              <DialogTitle>Create Genre</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Genre name</label>
+              <Input
+                value={newGenre.name}
+                onChange={(e) => setNewGenre({ ...newGenre, name: e.target.value })}
+                placeholder="e.g. Afro Gospel"
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Artwork</label>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  setNewImage(file ?? null)
+                  setNewImagePreview(file ? URL.createObjectURL(file) : null)
+                }}
+              />
+              {newImagePreview && (
+                <div className="overflow-hidden rounded-lg border bg-muted/40">
+                  <img src={newImagePreview} alt="Genre preview" className="h-40 w-full object-cover" />
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">Upload a vibrant image to help your genre stand out.</p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setCreateOpen(false)}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={uploading}>
+                {uploading ? "Uploading..." : "Create"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent>
@@ -191,17 +294,32 @@ export default function GenresPage() {
             </div>
             <div className="space-y-2">
               <label className="text-sm font-medium">Slug</label>
+              <Input value={editValues.slug} disabled />
+            </div>
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Artwork</label>
               <Input
-                value={editValues.slug}
-                onChange={(e) => setEditValues((v) => ({ ...v, slug: e.target.value }))}
-                required
+                type="file"
+                accept="image/*"
+                onChange={(e) => {
+                  const file = e.target.files?.[0]
+                  setEditImage(file ?? null)
+                  setEditImagePreview(file ? URL.createObjectURL(file) : editValues.imageUrl || null)
+                }}
               />
+              {editImagePreview && (
+                <div className="overflow-hidden rounded-lg border bg-muted/40">
+                  <img src={editImagePreview} alt="Genre preview" className="h-36 w-full object-cover" />
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => setEditing(null)}>
                 Cancel
               </Button>
-              <Button type="submit">Save changes</Button>
+              <Button type="submit" disabled={uploading}>
+                {uploading ? "Saving..." : "Save changes"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>

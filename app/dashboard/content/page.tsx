@@ -7,7 +7,7 @@ export default function ContentIndexPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold tracking-tight">Content</h1>
-        <p className="text-muted-foreground">Manage songs and other media in Apostle.</p>
+        <p className="text-muted-foreground">Manage songs and other media in Apostles.</p>
       </div>
 
       <Empty className="border">
