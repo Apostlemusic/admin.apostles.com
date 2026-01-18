@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { authApi } from "@/lib/api/auth"
 import { useAuth } from "@/hooks/use-auth"
 import { useRouter } from "next/navigation"
@@ -14,32 +14,60 @@ import { toast } from "sonner"
 
 export default function DashboardPage() {
   const router = useRouter()
-  const { isAuthenticated, admin } = useAuth()
+  const { isAuthenticated, admin, accessToken } = useAuth()
   const [stats, setStats] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const warnedMissingTokenRef = useRef(false)
 
   useEffect(() => {
     if (!isAuthenticated) {
-      router.push("/login")
+      setLoading(false)
+      router.replace("/login")
       return
     }
 
+    const token =
+      accessToken ||
+      (typeof window !== "undefined"
+        ? localStorage.getItem("apostle_admin_access_token") || localStorage.getItem("apostle_admin_token")
+        : null)
+
+    if (!token) {
+      if (!warnedMissingTokenRef.current) {
+        warnedMissingTokenRef.current = true
+        toast.error("Missing access token. Please log in again.")
+      }
+      setLoading(false)
+      return
+    }
+
+    let active = true
+    setLoading(true)
+
     async function fetchStats() {
       try {
-        const res = await authApi.getStats()
+        const res = await authApi.getStats(token)
         const data = res.data
-        if (data?.success) {
+        if (active && data?.success) {
           setStats(data.stats)
           toast.success("Dashboard updated")
         }
-      } catch (err) {
-        toast.error("Failed to load dashboard stats")
+      } catch (err: any) {
+        const message =
+          err?.response?.data?.message ||
+          err?.message ||
+          "Failed to load dashboard stats"
+        if (active) toast.error(message)
       } finally {
-        setLoading(false)
+        if (active) setLoading(false)
       }
     }
+
     fetchStats()
-  }, [isAuthenticated, router])
+    return () => {
+      active = false
+    }
+  }, [isAuthenticated, accessToken, router])
 
   const topCategories = useMemo(() => stats?.topCategories || [], [stats])
   const topGenres = useMemo(() => stats?.topGenres || [], [stats])

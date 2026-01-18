@@ -28,6 +28,7 @@ interface AuthState {
   isAuthenticated: boolean
   isLoading: boolean
   error: string | null
+  accessToken: string | null
   login: (data: LoginData) => Promise<void>
   register: (data: RegisterData) => Promise<void>
   logout: () => Promise<void>
@@ -41,6 +42,7 @@ export const useAuth = create<AuthState>()(
       isAuthenticated: false,
       isLoading: false,
       error: null,
+      accessToken: null,
 
       login: async (data: LoginData) => {
         set({ isLoading: true, error: null })
@@ -51,11 +53,19 @@ export const useAuth = create<AuthState>()(
             return
           }
 
-          const accessToken = res.data?.accessToken
+          const accessToken =
+            res.data?.accessToken ||
+            res.data?.token ||
+            res.data?.access_token ||
+            res.data?.data?.accessToken ||
+            res.data?.data?.token ||
+            res.data?.data?.access_token
           const refreshToken = res.data?.refreshToken
-
           if (typeof window !== "undefined") {
-            if (accessToken) localStorage.setItem("apostle_admin_access_token", accessToken)
+            if (accessToken) {
+              localStorage.setItem("apostle_admin_access_token", accessToken)
+              localStorage.setItem("apostle_admin_token", accessToken)
+            }
             if (refreshToken) localStorage.setItem("apostle_admin_refresh_token", refreshToken)
           }
 
@@ -73,9 +83,9 @@ export const useAuth = create<AuthState>()(
               name: admin.name || admin.fullName || "Admin",
               phoneNumber: admin.phoneNumber || "",
             }
-            set({ admin: normalized, isAuthenticated: true, isLoading: false })
+            set({ admin: normalized, isAuthenticated: true, isLoading: false, accessToken: accessToken || null })
           } else {
-            set({ isAuthenticated: true, isLoading: false })
+            set({ isAuthenticated: true, isLoading: false, accessToken: accessToken || null })
           }
         } catch (error: any) {
           set({
@@ -91,15 +101,25 @@ export const useAuth = create<AuthState>()(
         try {
           const res = await authApi.register(data)
           if (res.data?.success) {
+            const accessToken =
+              res.data?.accessToken ||
+              res.data?.token ||
+              res.data?.access_token ||
+              res.data?.data?.accessToken ||
+              res.data?.data?.token ||
+              res.data?.data?.access_token
             set({
               admin: res.data.admin,
               isAuthenticated: true,
               isLoading: false,
+              accessToken: accessToken || null,
             })
-            const accessToken = res.data?.accessToken
             const refreshToken = res.data?.refreshToken
             if (typeof window !== "undefined") {
-              if (accessToken) localStorage.setItem("apostle_admin_access_token", accessToken)
+              if (accessToken) {
+                localStorage.setItem("apostle_admin_access_token", accessToken)
+                localStorage.setItem("apostle_admin_token", accessToken)
+              }
               if (refreshToken) localStorage.setItem("apostle_admin_refresh_token", refreshToken)
             }
           }
@@ -125,6 +145,7 @@ export const useAuth = create<AuthState>()(
             admin: null,
             isAuthenticated: false,
             isLoading: false,
+            accessToken: null,
           })
         } catch (error) {
           set({ isLoading: false })
@@ -138,6 +159,7 @@ export const useAuth = create<AuthState>()(
       partialize: (state) => ({
         admin: state.admin,
         isAuthenticated: state.isAuthenticated,
+        accessToken: state.accessToken,
       }),
     },
   ),

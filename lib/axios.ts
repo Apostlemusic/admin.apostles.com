@@ -1,7 +1,21 @@
 import axios from "axios"
 
+const resolveBaseURL = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL
+  if (typeof window === "undefined") return "http://localhost:10000"
+
+  const { protocol, hostname, port, origin } = window.location
+  const devPorts = new Set(["3000", "3001", "5173", "4173"])
+
+  if (hostname === "localhost" || hostname.endsWith(".local") || devPorts.has(port)) {
+    return `${protocol}//${hostname}:10000`
+  }
+
+  return origin
+}
+
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:10000",
+  baseURL: resolveBaseURL(),
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",

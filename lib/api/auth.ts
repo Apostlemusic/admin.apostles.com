@@ -8,6 +8,18 @@ export const authApi = {
   forgotPassword: (data: any) => api.post("/api/admin/forgotPassword", data),
   resetPassword: (data: any) => api.post("/api/admin/resetPassword", data),
   logout: () => api.post("/api/admin/logout"),
-  getStats: () => api.get("/api/admin/stats"),
+  getStats: (token?: string | null) =>
+    api.get(
+      "/api/admin/stats",
+      token
+        ? {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "x-access-token": token,
+              token,
+            },
+          }
+        : undefined,
+    ),
   getMe: () => api.get("/api/admin/profile/me"),
 }
